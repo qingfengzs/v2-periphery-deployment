@@ -47,14 +47,6 @@ module.exports = {
                 runs: 5000
               }
             }
-          },
-          {
-            version: "0.8.9",
-            settings: {
-              optimizer: {
-                enabled: true
-              }
-            }
           }
         ],
       },
