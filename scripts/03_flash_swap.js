@@ -1,8 +1,9 @@
 const hre = require("hardhat");
 const { writeAddr } = require('./artifact_log.js');
-const delay = require('./delay');
+const delay = require('./delay.js');
 
 let Factory = require(`../../v2-core/deployments/${network.name}/UniswapV2Factory.json`)
+let Factory2 = require(`../../v2-core/deployments/${network.name}/UniswapV2Factory2.json`)
 let FactoryABI = require(`../../v2-core/deployments/abi/UniswapV2Factory.json`)
 
 
@@ -11,6 +12,11 @@ console.log("factoryAddr: ", factoryAddr);
 
 let Router = require(`../deployments/${network.name}/Router.json`)
 let routerAddr = Router.address;
+
+
+let Router2 = require(`../deployments/${network.name}/Router_2.json`)
+let router2Addr = Router2.address;
+
 
 var atoken;
 var btoken;
@@ -25,10 +31,6 @@ async function printShotPrice() {
   console.log("即时价格: 1 A = " +  ethers.utils.formatUnits(amounts[1], 18) + " B");
 }
 
-async function printTWAPPrice() {
-  let amount = await oracle.consult(atoken.address, ethers.utils.parseUnits("1", 18));
-  console.log("时间加权价格: 1 A = " +  ethers.utils.formatUnits(amount, 18) + " B");
-}
 
 async function balances(tag) {
   let a2 =  await atoken.balanceOf(owner.address);
@@ -45,9 +47,7 @@ async function swap(path, amount) {
     path, owner.address, 16700718270);
 }
 
-async function main() {
-  [owner]  = await ethers.getSigners();
-
+async function deployToken() {
   const MyERC20 = await hre.ethers.getContractFactory("ERC20");
   let amount = ethers.utils.parseUnits("10000000", 18);
   atoken = await MyERC20.deploy(amount);
@@ -58,6 +58,14 @@ async function main() {
   btoken = await MyERC20.deploy(amount);
   await btoken.deployed();
   console.log("btoken:", btoken.address);
+}
+
+
+
+async function main() {
+  [owner]  = await ethers.getSigners();
+  await deployToken();
+
 
   let UniswapRouter = await ethers.getContractFactory("UniswapV2Router02");
   router = await UniswapRouter.attach(routerAddr);
@@ -65,6 +73,8 @@ async function main() {
   await atoken.approve(router.address, ethers.constants.MaxUint256 );
   await btoken.approve(router.address, ethers.constants.MaxUint256 );
 
+
+  // addLiquidity
   let liqAmount  = ethers.utils.parseUnits("1000000", 18);
   let liq2Amount = ethers.utils.parseUnits("2000000", 18);
   let tx = await router.addLiquidity(atoken.address, btoken.address, liqAmount, liq2Amount,
@@ -72,9 +82,6 @@ async function main() {
       owner.address, 16700718270);
   await tx.wait();
 
-  let OracleSimple = await ethers.getContractFactory("ExampleOracleSimple");
-  oracle = await OracleSimple.deploy(factoryAddr, atoken.address, btoken.address);
-  await oracle.deployed();
 
   let factory = new ethers.Contract(factoryAddr, 
     FactoryABI, owner);
@@ -83,22 +90,6 @@ async function main() {
   console.log("pair address: ", pair);
 
   
-  await printShotPrice();
-  await delay.advanceTime(ethers.provider, 600);
-  await swap([atoken.address, btoken.address], "200000");
-  await printShotPrice();
-
-  await delay.advanceTime(ethers.provider, 600);
-  await swap([btoken.address, atoken.address], "400000");
-  await printShotPrice();
-
-  await delay.advanceTime(ethers.provider, 1200);
-  await swap([btoken.address, atoken.address], "200000");
-  await printShotPrice();
-
-  await delay.advanceTime(ethers.provider, 1200); // 60 * 60
-  await oracle.update();
-  await printTWAPPrice();
 }
 
 // We recommend this pattern to be able to use async/await everywhere
