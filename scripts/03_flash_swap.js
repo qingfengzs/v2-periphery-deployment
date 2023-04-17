@@ -21,15 +21,10 @@ let router2Addr = Router2.address;
 var atoken;
 var btoken;
 var router;
-var oracle;
 var owner;
+var flashSwapContract;
 
 console.log("Router address: ", routerAddr);
-
-async function printShotPrice() {
-  let amounts = await router.getAmountsOut(ethers.utils.parseUnits("1", 18), [atoken.address, btoken.address]);
-  console.log("即时价格: 1 A = " +  ethers.utils.formatUnits(amounts[1], 18) + " B");
-}
 
 
 async function balances(tag) {
@@ -60,6 +55,14 @@ async function deployToken() {
   console.log("btoken:", btoken.address);
 }
 
+async function deployFlashSWap() {
+  const FlashSwap = await hre.ethers.getContractFactory("FlashSwap");
+  flashSwapContract = await FlashSwap.deploy(factoryAddr, router2Addr);
+  await flashSwapContract.deployed();
+
+  console.log("flashSwapContract:" + flashSwapContract.address)
+}
+
 
 async function addLiquidityOnPair1() {
   let UniswapRouter = await ethers.getContractFactory("UniswapV2Router02");
@@ -70,17 +73,13 @@ async function addLiquidityOnPair1() {
 
     // addLiquidity on pair1
     let atokenAmount  = ethers.utils.parseUnits("1000000", 18);
-    let btokenAmount = ethers.utils.parseUnits("2000000", 18);
+    let btokenAmount  = ethers.utils.parseUnits("2000000", 18);
     let tx = await router.addLiquidity(atoken.address, btoken.address, atokenAmount, btokenAmount,
         0, 0,
         owner.address, 16700718270);
     await tx.wait();
 
-    let factory = new ethers.Contract(factoryAddr, 
-      FactoryABI, owner);
-  
-    const pair = await factory.getPair(atoken.address, btoken.address);
-    console.log("pair address: ", pair);
+
 }
 
 async function addLiquidityOnPair2() {
@@ -92,7 +91,7 @@ async function addLiquidityOnPair2() {
 
     // addLiquidity on pair2
     router2 = await UniswapRouter.attach(router2Addr);
-    let atokenAmount2  = ethers.utils.parseUnits("1200000", 18);
+    let atokenAmount2  = ethers.utils.parseUnits("1500000", 18);
     let btokenAmount2 = ethers.utils.parseUnits("2000000", 18);
     let tx2 = await router2.addLiquidity(atoken.address, btoken.address, atokenAmount2, btokenAmount2,
         0, 0,
@@ -100,10 +99,10 @@ async function addLiquidityOnPair2() {
     await tx2.wait();
 
 
-  let factory2 = new ethers.Contract(factoryAddr, 
+  let factory2 = new ethers.Contract(Factory2.address, 
     FactoryABI, owner);
   const pair2 = await factory2.getPair(atoken.address, btoken.address);
-  console.log("pair address: ", pair2);
+  console.log("pair2 address: ", pair2);
 }
 
 
@@ -114,10 +113,22 @@ async function main() {
   await addLiquidityOnPair1();
   await addLiquidityOnPair2();
 
+
+  await deployFlashSWap();
+
+  let factory = new ethers.Contract(factoryAddr, 
+    FactoryABI, owner);
+
+  const pair = await factory.getPair(atoken.address, btoken.address);
+  console.log("pair address: ", pair);
   
+  await balances("before swap");
+
+  let tx = await flashSwapContract.flashSwap(pair, btoken.address);
 
 
-  
+  await balances("after swap");
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere
