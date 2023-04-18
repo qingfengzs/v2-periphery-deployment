@@ -27,20 +27,14 @@ var flashSwapContract;
 console.log("Router address: ", routerAddr);
 
 
-async function balances(tag) {
-  let a2 =  await atoken.balanceOf(owner.address);
+async function balances(tag, account) {
+  let a2 =  await atoken.balanceOf(account);
   console.log(tag + "A 余额: " +  ethers.utils.formatUnits(a2, 18))
 
-  let b2 = await btoken.balanceOf(owner.address);
+  let b2 = await btoken.balanceOf(account);
   console.log(tag + "B 余额: " +  ethers.utils.formatUnits(b2, 18))
 }
 
-async function swap(path, amount) {
-  let swapAmount = ethers.utils.parseUnits(amount, 18);
-  await router.swapExactTokensForTokens(
-    swapAmount, "0", 
-    path, owner.address, 16700718270);
-}
 
 async function deployToken() {
   const MyERC20 = await hre.ethers.getContractFactory("ERC20");
@@ -98,7 +92,7 @@ async function addLiquidityOnPair2() {
         owner.address, 16700718270);
     await tx2.wait();
 
-
+  console.log("factory2 address: ", Factory2.address);
   let factory2 = new ethers.Contract(Factory2.address, 
     FactoryABI, owner);
   const pair2 = await factory2.getPair(atoken.address, btoken.address);
@@ -122,12 +116,14 @@ async function main() {
   const pair = await factory.getPair(atoken.address, btoken.address);
   console.log("pair address: ", pair);
   
-  await balances("before swap");
+  await balances("before swap", owner.address);
 
   let tx = await flashSwapContract.flashSwap(pair, btoken.address);
+  await tx.wait();
 
+  await balances("after swap", owner.address);
 
-  await balances("after swap");
+  await balances("flashSwap Holder", flashSwapContract.address);
 
 }
 
