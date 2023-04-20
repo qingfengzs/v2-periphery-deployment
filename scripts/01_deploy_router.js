@@ -3,7 +3,7 @@ const { ethers, network } = require("hardhat");
 const { writeAddr } = require('./artifact_log.js');
 
 
-let Factory = require(`../../v2-core/deployments/${network.name}/UniswapV2Factory.json`)
+let Factory = require(`../../v2-core-deployment/deployments/${network.name}/UniswapV2Factory.json`)
 
 
 let factoryAddr = Factory.address;
@@ -18,7 +18,7 @@ async function main() {
   console.log("WETH address: ", weth.address);
   await writeAddr(weth.address, "WETH", network.name);
 
-  Router = await ethers.getContractFactory("UniswapV2Router02");
+  Router = await ethers.getContractFactory("UniswapV2Router01");
   router = await Router.deploy(factoryAddr, weth.address);
   await router.deployed();
 
