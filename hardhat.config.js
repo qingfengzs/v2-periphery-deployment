@@ -1,4 +1,5 @@
-require("@nomiclabs/hardhat-waffle");
+require("@nomicfoundation/hardhat-toolbox");
+require('hardhat-abi-exporter');
 let dotenv = require('dotenv')
 dotenv.config({ path: './.env' })
 
